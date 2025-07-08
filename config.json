@@ -1,0 +1,21 @@
+{
+  "server": {
+    "port": "5000"
+  },
+  "database": {
+    "host": "172.27.27.50",
+    "user": "prog",
+    "port": "3306",
+    "password": "ind0M4rcO^Pri$",
+    "schema": "secure_page"
+  },
+  "clients": {
+    "C00001": {
+      "private_key_path": "certificate/C00001/private.key",
+      "public_key_path": "certificate/C00001/public.key"
+    }
+  },
+  "helper":{
+    "secure_page_port":"http://localhost:3000"
+  }
+}
