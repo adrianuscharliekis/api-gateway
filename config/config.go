@@ -45,8 +45,17 @@ func ConnectDB() {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: newLogger,
 	})
+	sqlDB, err := db.DB()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatal("Failed to get DB from GORM: ", err)
+	}
+
+	// Set connection pool
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	if err != nil {
+		log.Fatalf("Error connecting to database: %v", err)
 	}
 	DB = db
 }
