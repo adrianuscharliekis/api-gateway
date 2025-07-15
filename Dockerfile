@@ -1,7 +1,7 @@
 # Stage 1: The Builder
 # We use a specific Go version to build our application.
 FROM golang:1.24-alpine AS builder
-
+ENV TZ=Asia/Jakarta
 # Set the working directory inside the container
 WORKDIR /app
 

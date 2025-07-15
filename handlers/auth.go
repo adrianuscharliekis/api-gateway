@@ -105,10 +105,13 @@ func (h AuthHandler) Login(c *gin.Context) {
 	}
 
 	// 3. Validate timestamp to prevent replay attacks
-	requestTime, err := time.Parse(time.RFC3339, timestampStr)
+	requestTime, err := time.Parse("2006-01-02T15:04:05-07:00", timestampStr)
 	if err != nil {
-		go h.tracelog.Log("LOGIN", clientKey, productType, "Invalid X-TIMESTAMP format. Please use RFC3339.")
-		c.JSON(http.StatusBadRequest, response.ErrorResponse{ResponseCode: "400", ResponseMessage: "Invalid X-TIMESTAMP format. Please use RFC3339."})
+		go h.tracelog.Log("LOGIN", clientKey, productType, "Invalid X-TIMESTAMP format")
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			ResponseCode:    "400",
+			ResponseMessage: "Invalid X-TIMESTAMP format." + err.Error(),
+		})
 		return
 	}
 	// Allow a 5-minute window

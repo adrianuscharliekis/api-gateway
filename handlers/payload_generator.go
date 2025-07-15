@@ -13,7 +13,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net/http" // Import net/url
+	"net/http"
+	"net/url" // Import the 'net/url' package
 	"os"
 	"time"
 
@@ -22,10 +23,9 @@ import (
 
 // generateSignature is the core logic function.
 func generateSignature(clientID, privateKeyPath, redirect string) (*response.SignatureResponse, error) {
-	// 1. Generate timestamp in RFC3339 format
-	timestamp := time.Now().UTC().Format(time.RFC3339)
-
-	// 2. Create the string to be signed
+	// 1. Generate timestamp in RFC3339 format with timezone
+	// This format is correct for matching the validation logic.
+	timestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
 	stringToSign := fmt.Sprintf("%s|%s", clientID, timestamp)
 
 	// 3. Read the private key from the specified file path
@@ -61,18 +61,19 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 		return nil, fmt.Errorf("failed to sign data: %w", err)
 	}
 
-	// 7. *** FIX: Encode the signature using URL-safe Base64 ***
+	// 7. Encode the signature using URL-safe Base64
 	encodedSignature := base64.URLEncoding.EncodeToString(signature)
 
-	// 8. *** FIX: Build the link with ALL required parameters for testing ***
-	// The timestamp must be passed along so the verifier can use it.
-	// We also need to URL-encode the parameters to be safe.
-	link := fmt.Sprintf("/auth/login?ca_code=%s&payload=%s&timestamp=%s&redirect=%s",
-		clientID,
-		encodedSignature,
-		timestamp,
-		redirect,
-	)
+	// 8. *** FIX: Build the link robustly using net/url ***
+	// This correctly encodes all parameters, including the '+' in the timestamp.
+	params := url.Values{}
+	params.Set("ca_code", clientID)
+	params.Set("signature", encodedSignature)
+	params.Set("timestamp", timestamp)
+	params.Set("product", redirect)
+
+	// The .Encode() method handles all necessary character escaping.
+	link := fmt.Sprintf("/auth/login?%s", params.Encode())
 
 	response := &response.SignatureResponse{
 		ClientID:  clientID,
