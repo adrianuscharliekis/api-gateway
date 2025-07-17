@@ -22,7 +22,13 @@ func NewTracelogRepository(db *gorm.DB) TracelogRepository {
 }
 
 func (r *tracelogRepository) Insert(m *model.Tracelog) error {
-	// This part is already correct.
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().In(loc)
+
 	ignoreClause := clause.Insert{Modifier: "IGNORE"}
 
 	dataToInsert := map[string]interface{}{
@@ -31,7 +37,7 @@ func (r *tracelogRepository) Insert(m *model.Tracelog) error {
 		"ca_code":      m.CaCode,
 		"product_type": m.ProductType,
 		"log":          m.Log,
-		"tracetime":    time.Now(),
+		"tracetime":    now,
 	}
 
 	result := r.db.Table("tracelogs").

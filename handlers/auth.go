@@ -163,7 +163,7 @@ func (h AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, response.SuccessResponse{ResponseCode: "200", ResponseMessage: "Successful", AdditionalInfo: map[string]string{
 		"accessToken": accessToken,
 		"tokenType":   "Bearer",
-		"expiresIn":   "3600",
+		"expiresIn":   "900",
 	},
 	})
 }
