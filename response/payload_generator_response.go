@@ -5,5 +5,5 @@ type SignatureResponse struct {
 	Timestamp  string `json:"timestamp"`
 	Signature  string `json:"signature"`
 	Link       string `json:"link"`
-	ExternalID string `json:"externalID"`
+	ExternalID string `json:"externalId"`
 }

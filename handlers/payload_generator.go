@@ -75,7 +75,7 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 	params.Set("signature", encodedSignature)
 	params.Set("timestamp", timestamp)
 	params.Set("product", redirect)
-	params.Set("externalID", externalID)
+	params.Set("externalId", externalID)
 
 	link := fmt.Sprintf("/auth/login?%s", params.Encode())
 
