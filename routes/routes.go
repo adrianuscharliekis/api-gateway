@@ -5,6 +5,8 @@ import (
 	"api-gateway/middleware"
 	"api-gateway/repository"
 	"api-gateway/services"
+	"api-gateway/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -13,7 +15,8 @@ import (
 func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
 	tracelogRepo := repository.NewTracelogRepository(db)
 	tracelogService := services.NewTracelogServices(tracelogRepo)
-	authHandler := handlers.NewAuthHanlder(tracelogService)
+	externalIDStore := utils.NewExternalIDStore(15 * time.Minute)
+	authHandler := handlers.NewAuthHandler(tracelogService, externalIDStore)
 	proxyHandler := handlers.NewProxyHandler(tracelogService)
 	router.POST("/auth/login", authHandler.Login)
 	router.POST("/generateJWT", handlers.GenerateSignatureHandler)

@@ -22,11 +22,12 @@ import (
 )
 
 type AuthHandler struct {
-	tracelog services.TracelogServices
+	tracelog        services.TracelogServices
+	externalIDStore *utils.ExternalIDStore
 }
 
-func NewAuthHanlder(s services.TracelogServices) *AuthHandler {
-	return &AuthHandler{tracelog: s}
+func NewAuthHandler(s services.TracelogServices, store *utils.ExternalIDStore) *AuthHandler {
+	return &AuthHandler{tracelog: s, externalIDStore: store}
 }
 
 // --- Core Verification Logic ---
@@ -86,13 +87,17 @@ func (h AuthHandler) Login(c *gin.Context) {
 	timestampStr := c.GetHeader("X-TIMESTAMP")
 	clientKey := c.GetHeader("X-CLIENT-KEY")
 	signature := c.GetHeader("X-SIGNATURE")
-	productType := c.GetHeader("X-EXTERNAL-ID")
-	logStr := fmt.Sprintf("X-TIMESTAMP=%s | X-CLIENT-KEY=%s | X-SIGNATURE=%s | X-EXTERNAL-ID=%s", timestampStr, clientKey, signature, productType)
+	productType := c.GetHeader("X-PRODUCT-ID")
+	externalID := c.GetHeader("X-EXTERNAL-ID")
+	logStr := fmt.Sprintf("X-TIMESTAMP=%s | X-CLIENT-KEY=%s | X-SIGNATURE=%s | X-EXTERNAL-ID=%s", timestampStr, clientKey, signature, externalID)
+	go h.tracelog.Log("LOGIN", clientKey, externalID, logStr)
 
-	go h.tracelog.Log("LOGIN", clientKey, productType, logStr)
-	if timestampStr == "" || clientKey == "" || signature == "" {
-		h.tracelog.Log("LOGIN", clientKey, productType, "Missing Required Headers (X-TIMESTAMP, X-CLIENT-KEY, X-SIGNATURE)")
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse{ResponseCode: "401", ResponseMessage: "Missing Required Headers (X-TIMESTAMP, X-CLIENT-KEY, X-SIGNATURE)"})
+	if timestampStr == "" || clientKey == "" || signature == "" || externalID == "" || productType == "" {
+		h.tracelog.Log("LOGIN", clientKey, externalID, "Missing Required Headers")
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			ResponseCode:    "401",
+			ResponseMessage: "Missing Required Headers (X-TIMESTAMP, X-CLIENT-KEY, X-SIGNATURE, X-EXTERNAL-ID,X-PRODUCT-ID)",
+		})
 		return
 	}
 
@@ -134,9 +139,21 @@ func (h AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse{ResponseCode: "401", ResponseMessage: fmt.Sprintf("Client with key '%s' not registered.", clientKey)})
 		return
 	}
+	// Check if externalID has been seen before
+	if h.externalIDStore.ExistsAndValid(externalID) {
+		h.tracelog.Log("LOGIN", clientKey, externalID, "Replay attack detected: externalID reused")
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			ResponseCode:    "401",
+			ResponseMessage: "Replay attack detected: externalID already used",
+		})
+		return
+	}
+
+	// Store the externalID as new
+	h.externalIDStore.Save(externalID)
 
 	// 5. Reconstruct the string that was signed by the client
-	stringToVerify := fmt.Sprintf("%s|%s", clientKey, timestampStr)
+	stringToVerify := fmt.Sprintf("%s|%s|%s", clientKey, timestampStr, externalID)
 
 	// 6. Verify the digital signature
 	err = verifySignature(clientConf.PublicKeyPath, stringToVerify, signature)

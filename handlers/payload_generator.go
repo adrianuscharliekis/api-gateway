@@ -19,26 +19,31 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // generateSignature is the core logic function.
 func generateSignature(clientID, privateKeyPath, redirect string) (*response.SignatureResponse, error) {
 	// 1. Generate timestamp in RFC3339 format with timezone
-	// This format is correct for matching the validation logic.
 	timestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
-	stringToSign := fmt.Sprintf("%s|%s", clientID, timestamp)
 
-	// 3. Read the private key from the specified file path
+	// 2. Generate externalID (UUID)
+	externalID := uuid.New().String()
+
+	// 3. String to be signed: clientID|timestamp|externalID
+	stringToSign := fmt.Sprintf("%s|%s|%s", clientID, timestamp, externalID)
+
+	// 4. Read the private key
 	privateKeyPEM, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 
-	// 4. Decode the PEM file to get the private key
 	block, _ := pem.Decode(privateKeyPEM)
 	if block == nil {
 		return nil, errors.New("failed to decode PEM block containing private key")
 	}
+
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -55,7 +60,7 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 	// 5. Hash the string using SHA256
 	hashed := sha256.Sum256([]byte(stringToSign))
 
-	// 6. Sign the hash with the private key (SHA256withRSA)
+	// 6. Sign the hash with RSA private key
 	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hashed[:])
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign data: %w", err)
@@ -64,24 +69,24 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 	// 7. Encode the signature using URL-safe Base64
 	encodedSignature := base64.URLEncoding.EncodeToString(signature)
 
-	// 8. *** FIX: Build the link robustly using net/url ***
-	// This correctly encodes all parameters, including the '+' in the timestamp.
+	// 8. Build the secure URL with properly escaped query params
 	params := url.Values{}
 	params.Set("ca_code", clientID)
 	params.Set("signature", encodedSignature)
 	params.Set("timestamp", timestamp)
 	params.Set("product", redirect)
+	params.Set("externalID", externalID)
 
-	// The .Encode() method handles all necessary character escaping.
 	link := fmt.Sprintf("/auth/login?%s", params.Encode())
 
-	response := &response.SignatureResponse{
-		ClientID:  clientID,
-		Timestamp: timestamp,
-		Signature: encodedSignature,
-		Link:      link,
-	}
-	return response, nil
+	// 9. Return the response object
+	return &response.SignatureResponse{
+		ClientID:   clientID,
+		Timestamp:  timestamp,
+		Signature:  encodedSignature,
+		Link:       link,
+		ExternalID: externalID, // optional to return it explicitly
+	}, nil
 }
 
 // GenerateSignatureHandler is the Gin handler that wraps the core logic.
