@@ -44,16 +44,19 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 		return nil, errors.New("failed to decode PEM block containing private key")
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
+	var privateKey *rsa.PrivateKey
+	parsedKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err == nil {
+		privateKey = parsedKey
+	} else {
+		pkcs8Key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err2 != nil {
-			return nil, fmt.Errorf("failed to parse private key (tried PKCS1 and PKCS8): %w", err)
+			return nil, fmt.Errorf("failed to parse private key: %v, %v", err, err2)
 		}
 		var ok bool
-		privateKey, ok = key.(*rsa.PrivateKey)
+		privateKey, ok = pkcs8Key.(*rsa.PrivateKey)
 		if !ok {
-			return nil, errors.New("key is not an RSA private key")
+			return nil, err2
 		}
 	}
 
@@ -78,6 +81,7 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 	params.Set("externalId", externalID)
 
 	link := fmt.Sprintf("/auth/login?%s", params.Encode())
+	before := fmt.Sprintf("/auth/login?ca_code=%s&externalId=%s&product=%s&signature=%s&timestamp=%s", clientID, externalID, redirect, encodedSignature, timestamp)
 
 	// 9. Return the response object
 	return &response.SignatureResponse{
@@ -85,7 +89,8 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 		Timestamp:  timestamp,
 		Signature:  encodedSignature,
 		Link:       link,
-		ExternalID: externalID, // optional to return it explicitly
+		BeforeLink: before,
+		ExternalID: externalID,
 	}, nil
 }
 
@@ -116,6 +121,7 @@ func GenerateSignatureHandler(c *gin.Context) {
 	}
 	helper := config.Helper
 	response.Link = fmt.Sprintf("%s%s", helper["secure_page_port"], response.Link)
+	response.BeforeLink = fmt.Sprintf("%s%s", helper["secure_page_port"], response.BeforeLink)
 
 	c.JSON(http.StatusOK, response)
 }

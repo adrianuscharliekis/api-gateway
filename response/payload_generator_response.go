@@ -6,4 +6,5 @@ type SignatureResponse struct {
 	Signature  string `json:"signature"`
 	Link       string `json:"link"`
 	ExternalID string `json:"externalId"`
+	BeforeLink string `json:"before_link"`
 }

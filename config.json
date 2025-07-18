@@ -10,9 +10,13 @@
     "schema": "secure_page"
   },
   "clients": {
-    "C00001": {
-      "private_key_path": "certificate/C00001/private.key",
-      "public_key_path": "certificate/C00001/public.key"
+    "C00005": {
+      "private_key_path": "certificate/C00005/private.key",
+      "public_key_path": "certificate/C00005/public.key"
+    },
+    "C00006": {
+      "private_key_path": "certificate/C00006/private.key",
+      "public_key_path": "certificate/C00006/public.key"
     }
   },
   "helper":{
