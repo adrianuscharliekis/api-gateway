@@ -159,9 +159,9 @@ func (h AuthHandler) Login(c *gin.Context) {
 	err = verifySignature(clientConf.PublicKeyPath, stringToVerify, signature)
 	if err != nil {
 		// Log the detailed error for debugging, but return a generic error to the user.
-		go h.tracelog.Log("LOGIN", clientKey, productType, "Invalid Signature")
+		go h.tracelog.Log("LOGIN", clientKey, productType, "Invalid Signature :"+err.Error())
 		fmt.Printf("Signature verification failed for client %s: %v\n", clientKey, err)
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse{ResponseCode: "401", ResponseMessage: "Invalid Signature"})
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{ResponseCode: "401", ResponseMessage: "Invalid Signature : " + err.Error()})
 		return
 	}
 
