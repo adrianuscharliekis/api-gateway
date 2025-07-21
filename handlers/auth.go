@@ -56,11 +56,7 @@ func verifySignature(publicKeyPath, stringToVerify, base64Signature string) erro
 		return errors.New("key is not a valid RSA public key")
 	}
 
-	// 4. Decode the Base64 signature from the header
-	// *** FIX: Use URLEncoding instead of StdEncoding. This is crucial for data
-	// transmitted in HTTP headers, as it avoids issues with '+' and '/' characters.
-	// The client that generates the signature MUST also use URLEncoding.
-	signature, err := base64.URLEncoding.DecodeString(base64Signature)
+	signature, err := base64.StdEncoding.DecodeString(base64Signature)
 	if err != nil {
 		return fmt.Errorf("failed to decode base64 signature: %w", err)
 	}

@@ -70,7 +70,7 @@ func generateSignature(clientID, privateKeyPath, redirect string) (*response.Sig
 	}
 
 	// 7. Encode the signature using URL-safe Base64
-	encodedSignature := base64.URLEncoding.EncodeToString(signature)
+	encodedSignature := base64.StdEncoding.EncodeToString(signature)
 
 	// 8. Build the secure URL with properly escaped query params
 	params := url.Values{}
