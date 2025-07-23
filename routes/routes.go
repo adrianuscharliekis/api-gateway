@@ -7,7 +7,6 @@ import (
 	"api-gateway/services"
 	"api-gateway/utils"
 	"database/sql"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +14,7 @@ import (
 func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	tracelogRepo := repository.NewTracelogRepository(db)
 	tracelogService := services.NewTracelogServices(tracelogRepo)
-	externalIDStore := utils.NewExternalIDStore(15 * time.Minute)
+	externalIDStore := utils.NewExternalIDStore()
 	authHandler := handlers.NewAuthHandler(tracelogService, externalIDStore)
 	proxyHandler := handlers.NewProxyHandler(tracelogService)
 	router.POST("/auth/login", authHandler.Login)
