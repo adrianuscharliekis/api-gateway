@@ -3,10 +3,7 @@ package repository
 
 import (
 	"api-gateway/model"
-	"time"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"database/sql"
 )
 
 type TracelogRepository interface {
@@ -14,35 +11,26 @@ type TracelogRepository interface {
 }
 
 type tracelogRepository struct {
-	db *gorm.DB
+	db *sql.DB
 }
 
-func NewTracelogRepository(db *gorm.DB) TracelogRepository {
+func NewTracelogRepository(db *sql.DB) TracelogRepository {
 	return &tracelogRepository{db: db}
 }
 
 func (r *tracelogRepository) Insert(m *model.Tracelog) error {
-	loc, err := time.LoadLocation("Asia/Jakarta")
+	stmt, err := r.db.Prepare(`
+		INSERT IGNORE INTO tracelogs (
+			ip, proses, ca_code, product_type, log, tracetime
+		) VALUES (
+			USER(), ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+07:00')
+		)
+	`)
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
-	now := time.Now().In(loc)
-
-	ignoreClause := clause.Insert{Modifier: "IGNORE"}
-
-	dataToInsert := map[string]interface{}{
-		"ip":           gorm.Expr("user()"),
-		"proses":       m.Proses,
-		"ca_code":      m.CaCode,
-		"product_type": m.ProductType,
-		"log":          m.Log,
-		"tracetime":    now,
-	}
-
-	result := r.db.Table("tracelogs").
-		Clauses(ignoreClause).
-		Create(&dataToInsert)
-
-	return result.Error
+	_, err = stmt.Exec(m.Proses, m.CaCode, m.ProductType, m.Log)
+	return err
 }

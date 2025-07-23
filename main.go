@@ -2,7 +2,6 @@ package main
 
 import (
 	"api-gateway/config"
-	"api-gateway/model"
 	"api-gateway/routes"
 	"context"
 	"log"
@@ -14,17 +13,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
-	r.Use(gin.Recovery()) // Don't use gin.Default(), skip default logger in prod
+	r.Use(gin.Recovery())
 
 	config.Startup()
 	config.ConnectDB()
-	config.DB.AutoMigrate(&model.Tracelog{})
 
 	routes.RegisterRoutes(r, config.DB)
 

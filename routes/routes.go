@@ -6,13 +6,13 @@ import (
 	"api-gateway/repository"
 	"api-gateway/services"
 	"api-gateway/utils"
+	"database/sql"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
-func RegisterRoutes(router *gin.Engine, db *gorm.DB) {
+func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	tracelogRepo := repository.NewTracelogRepository(db)
 	tracelogService := services.NewTracelogServices(tracelogRepo)
 	externalIDStore := utils.NewExternalIDStore(15 * time.Minute)

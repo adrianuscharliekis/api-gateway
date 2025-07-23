@@ -86,10 +86,10 @@ func (h AuthHandler) Login(c *gin.Context) {
 	productType := c.GetHeader("X-PRODUCT-ID")
 	externalID := c.GetHeader("X-EXTERNAL-ID")
 	logStr := fmt.Sprintf("X-TIMESTAMP=%s | X-CLIENT-KEY=%s | X-SIGNATURE=%s | X-EXTERNAL-ID=%s", timestampStr, clientKey, signature, externalID)
-	go h.tracelog.Log("LOGIN", clientKey, externalID, logStr)
+	go h.tracelog.Log("LOGIN", clientKey, productType, logStr)
 
 	if timestampStr == "" || clientKey == "" || signature == "" || externalID == "" || productType == "" {
-		h.tracelog.Log("LOGIN", clientKey, externalID, "Missing Required Headers")
+		h.tracelog.Log("LOGIN", clientKey, productType, "Missing Required Headers")
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
 			ResponseCode:    "401",
 			ResponseMessage: "Missing Required Headers (X-TIMESTAMP, X-CLIENT-KEY, X-SIGNATURE, X-EXTERNAL-ID,X-PRODUCT-ID)",
