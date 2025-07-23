@@ -23,7 +23,7 @@ func (r *tracelogRepository) Insert(m *model.Tracelog) error {
 		INSERT IGNORE INTO tracelogs (
 			ip, proses, ca_code, product_type, log, tracetime
 		) VALUES (
-			USER(), ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+07:00')
+			USER(), ?, ?, ?, ?, NOW())
 		)
 	`)
 	if err != nil {
