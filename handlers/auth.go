@@ -24,10 +24,11 @@ import (
 type AuthHandler struct {
 	tracelog        services.TracelogServices
 	externalIDStore *utils.ExternalIDStore
+	productService  services.ProductService
 }
 
-func NewAuthHandler(s services.TracelogServices, store *utils.ExternalIDStore) *AuthHandler {
-	return &AuthHandler{tracelog: s, externalIDStore: store}
+func NewAuthHandler(s services.TracelogServices, store *utils.ExternalIDStore, p services.ProductService) *AuthHandler {
+	return &AuthHandler{tracelog: s, externalIDStore: store, productService: p}
 }
 
 // --- Core Verification Logic ---
@@ -75,9 +76,6 @@ func verifySignature(publicKeyPath, stringToVerify, base64Signature string) erro
 	return nil // Signature is valid
 }
 
-// --- Gin Handler ---
-
-// Login is the handler for the /auth/token endpoint, following ASPI SNAP specs.
 func (h AuthHandler) Login(c *gin.Context) {
 	// 1. Extract required headers
 	timestampStr := c.GetHeader("X-TIMESTAMP")
@@ -122,7 +120,18 @@ func (h AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 4. Load configuration and find the correct public key
+	// 5. Check if externalID has been seen before
+	if h.externalIDStore.ExistsAndValid(externalID) {
+		h.tracelog.Log("LOGIN", clientKey, externalID, "Replay attack detected: externalID reused")
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			ResponseCode:    "401",
+			ResponseMessage: "Replay attack detected: externalID already used",
+		})
+		return
+	}
+	h.externalIDStore.Save(externalID)
+
+	// 6. Load configuration and find the correct public key
 	config, err := model.LoadConfig()
 	if err != nil {
 		go h.tracelog.Log("LOGIN", clientKey, productType, "Server configuration error.")
@@ -135,23 +144,9 @@ func (h AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse{ResponseCode: "401", ResponseMessage: fmt.Sprintf("Client with key '%s' not registered.", clientKey)})
 		return
 	}
-	// Check if externalID has been seen before
-	if h.externalIDStore.ExistsAndValid(externalID) {
-		h.tracelog.Log("LOGIN", clientKey, externalID, "Replay attack detected: externalID reused")
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
-			ResponseCode:    "401",
-			ResponseMessage: "Replay attack detected: externalID already used",
-		})
-		return
-	}
 
-	// Store the externalID as new
-	h.externalIDStore.Save(externalID)
-
-	// 5. Reconstruct the string that was signed by the client
+	// 7. Verify the digital signature
 	stringToVerify := fmt.Sprintf("%s|%s|%s", clientKey, timestampStr, externalID)
-
-	// 6. Verify the digital signature
 	err = verifySignature(clientConf.PublicKeyPath, stringToVerify, signature)
 	if err != nil {
 		// Log the detailed error for debugging, but return a generic error to the user.
@@ -161,9 +156,15 @@ func (h AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 7. If signature is valid, generate the Access Token
-	// The token is signed with the API Gateway's own private key (handled by your util).
-	// The token's subject ('sub') should be the client_id that was just authenticated.
+	// 8. Check product main/engga lewat master_product
+	recid, err := h.productService.IsProductMain(productType, clientKey)
+	if !recid || err != nil {
+		go h.tracelog.Log("LOGIN", clientKey, productType, err.Error())
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{ResponseCode: "400", ResponseMessage: err.Error()})
+		return
+	}
+
+	// 9. Jika signature valid dan product main, maka generate jwt
 	accessToken, err := utils.GenerateJWT(clientKey)
 	if err != nil {
 		go h.tracelog.Log("LOGIN", clientKey, productType, "Failed to generate access token.")
@@ -171,7 +172,7 @@ func (h AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 8. Return the successful response as per ASPI SNAP spec
+	// 10. Login sukses, generate JWT
 	go h.tracelog.Log("LOGIN", clientKey, productType, "Success generate accesstoken :"+accessToken)
 	c.JSON(http.StatusOK, response.SuccessResponse{ResponseCode: "200", ResponseMessage: "Successful", AdditionalInfo: map[string]string{
 		"accessToken": accessToken,

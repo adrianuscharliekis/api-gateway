@@ -80,7 +80,7 @@ func (h *ProxyHandler) ProxyHandler(c *gin.Context) {
 	clientKey := c.GetHeader("X-PARTNER-ID")
 	productType := c.GetHeader("X-EXTERNAL-ID")
 	requestLogStr := h.buildRequestLogString(c, targetURL)
-	go h.tracelog.Log("PROXY_REQUEST", clientKey, productType, requestLogStr)
+	go h.tracelog.Log("REQUEST", clientKey, productType, requestLogStr)
 	// --- END REQUEST LOGGING ---
 
 	// --- PROXY LOGIC ---
@@ -130,6 +130,6 @@ func (h *ProxyHandler) ProxyHandler(c *gin.Context) {
 
 	// Now that the response has been fully sent, we can log it asynchronously.
 	responseLogStr := h.buildResponseLogString(respBodyBuffer.Bytes())
-	go h.tracelog.Log("PROXY_RESPONSE", clientKey, productType, responseLogStr)
+	go h.tracelog.Log("RESPONSE", clientKey, productType, responseLogStr)
 	// --- END RESPONSE LOGGING ---
 }

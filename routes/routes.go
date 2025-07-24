@@ -13,9 +13,11 @@ import (
 
 func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	tracelogRepo := repository.NewTracelogRepository(db)
+	productRepo := repository.NewProductRepository(db)
 	tracelogService := services.NewTracelogServices(tracelogRepo)
 	externalIDStore := utils.NewExternalIDStore()
-	authHandler := handlers.NewAuthHandler(tracelogService, externalIDStore)
+	productServices := services.NewProductService(productRepo, tracelogService)
+	authHandler := handlers.NewAuthHandler(tracelogService, externalIDStore, productServices)
 	proxyHandler := handlers.NewProxyHandler(tracelogService)
 	router.POST("/auth/login", authHandler.Login)
 	router.POST("/generateJWT", handlers.GenerateSignatureHandler)
